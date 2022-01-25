@@ -1,30 +1,31 @@
 import { Request, Response } from "express";
 import shortId from "shortid";
-import { config } from "./../config/Constants";
+import { config } from "../config/Constants";
+import { URLModel } from "../database/model/URL";
 
 export class URLController {
   public async shorten(req: Request, response: Response): Promise<void> {
-    // Ver se a URL já existe
-    // Criar o Hash para a URL
     const { originURL } = req.body;
-
+    const url = await URLModel.findOne({ originURL });
+    if (url) {
+      response.json(url);
+      return;
+    }
     const hash = shortId.generate();
     const shortURL = `${config.API_URL}/${hash}`;
-    // Salvar a URL no Banco de Dados
-    // Retornar a URL que foi salva
-    response.json({ originURL, hash, shortURL });
+    const newURL = await URLModel.create({ hash, shortURL, originURL });
+    response.json(newURL);
   }
 
   public async redirect(req: Request, response: Response): Promise<void> {
-    // Pegar has da URL
     const { hash } = req.params;
-    // Encontrar a URL original pelo hash
-    const url = {
-      originURL: "https://github.com/Wanderson-A-Timoteo",
-      hash: "",
-      shortURL: "",
-    };
-    // Redirecionar para a URL original a partir do que encontramos no Banco de Dados
-    response.redirect(url.originalURL);
+    const url = await URLModel.findOne({ hash });
+
+    if (url) {
+      response.redirect(url.originURL);
+      return;
+    }
+
+    response.status(400).json({ error: "URL not found" });
   }
 }
